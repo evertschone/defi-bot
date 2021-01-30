@@ -2,7 +2,7 @@ require('dotenv').config()
 require('console.table')
 const express = require('express')
 const path = require('path')
-const player = require('play-sound')(opts = {})
+const player = require('play-sound')()
 const http = require('http')
 const cors = require('cors')
 const Web3 = require('web3')
@@ -171,6 +171,8 @@ async function checkArb(args) {
     return
   }
 
+  console.log("Order being considered for arb.")
+
   // Fetch 1Split Data
   const oneSplitData = await fetchOneSplitData({
     fromToken: ASSET_ADDRESSES[assetOrder[1]],
@@ -191,6 +193,17 @@ async function checkArb(args) {
 
   // Determine if profitable
   const profitable = netProfit.toString() > '0'
+
+  
+  console.table([{
+    'Profitable?': profitable,
+    'Asset Order': assetOrder.join(', '),
+    'Exchange Order': 'ZRX, 1Split',
+    'Input':  displayTokens(inputAssetAmount, assetOrder[0]).padEnd(22, ' '),
+    'Output': displayTokens(outputAssetAmount, assetOrder[0]).padEnd(22, ' '),
+    'Profit': displayTokens(netProfit.toString(), assetOrder[0]).padEnd(22, ' '),
+    'Timestamp': now(),
+  }])
 
   // If profitable, then stop looking and trade!
   if(profitable) {
@@ -283,8 +296,8 @@ async function checkOrderBook(baseAssetSymbol, quoteAssetSymbol) {
   const quoteAssetAddress = ASSET_ADDRESSES[quoteAssetSymbol].substring(2,42)
   const zrxResponse = await axios.get(`https://api.0x.org/sra/v3/orderbook?baseAssetData=0xf47261b0000000000000000000000000${baseAssetAddress}&quoteAssetData=0xf47261b0000000000000000000000000${quoteAssetAddress}&perPage=1000`)
   const zrxData = zrxResponse.data
-
   const bids = zrxData.bids.records
+  console.log("orders found: ",bids.length + "\n")
   bids.map((o) => {
     checkArb({ zrxOrder: o.order, assetOrder: [baseAssetSymbol, quoteAssetSymbol, baseAssetSymbol] }) // E.G. WETH, DAI, WETH
   })
@@ -302,7 +315,7 @@ async function checkMarkets() {
     clearInterval(marketChecker)
   }
 
-  console.log(`Fetching market data @ ${now()} ...\n`)
+  console.log(`Fetching market data @ ${now()} ...`)
   checkingMarkets = true
   try {
     await checkOrderBook(WETH, DAI)
